@@ -1,0 +1,42 @@
+name: CI/CD
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-and-migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      # ✅ 可选：先跑 TypeScript build / tests，确保质量
+      - name: Build
+        run: npm run build
+
+      # ✅ Build Docker image（示例：你可以 push 到 registry）
+      - name: Docker build
+        run: docker build -t secure-support-api:${{ github.sha }} .
+
+      # ✅ 关键：在 CI/CD 里跑 production migration
+      # 你需要在 GitHub Secrets 配好 DATABASE_URL（指向 staging/prod DB）
+      - name: Run Prisma migrations (deploy)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate deploy
+      # ✅ 可选：在 CI/CD 里跑 seed 脚本
+      - name: Run seed script
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node dist/prisma/seed.js
