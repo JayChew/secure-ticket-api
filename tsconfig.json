@@ -1,21 +1,52 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
-  "compilerOptions": {
-    "target": "ES2023",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "baseUrl": "src",
-    "outDir": "dist",
-    "rootDir": "src",
-    "sourceMap": true,
-    "noImplicitAny": true,
-    "esModuleInterop": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true
-  },
+  // =====================
+  // Top Level
+  // =====================
   "include": [
-    "src/**/*"
-  ]
+    "src/**/*",
+  ],
+  // =====================
+  // compilerOptions
+  // =====================
+  "compilerOptions": {
+    // ---------------------
+    // Language and Environment
+    // ---------------------
+    "lib": [
+      "esnext"
+    ],
+    "target": "ES2023",
+    // ---------------------
+    // Modules
+    // ---------------------
+    "baseUrl": "src",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "resolveJsonModule": true,
+    "rootDir": "src",
+    // ---------------------
+    // Emit
+    // ---------------------
+    "outDir": "dist",
+    //"sourceMap": true,
+    // ---------------------
+    // Type Checking
+    // ---------------------
+    // "noImplicitAny": true,
+    "strict": true,
+    // ---------------------
+    // Interop Constraints
+    // ---------------------
+    // "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    // ---------------------
+    // Completeness
+    // ---------------------
+    // "skipLibCheck": true
+  }
 }

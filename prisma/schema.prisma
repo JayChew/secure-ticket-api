@@ -8,11 +8,11 @@ datasource db {
 }
 
 model Organization {
-  id           String         @id
+  id           String         @id @default(cuid())
   name         String
   isActive     Boolean        @default(true)
   createdAt    DateTime       @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime       @updatedAt
   deletedAt    DateTime?
   Plan         Plan[]
   Subscription Subscription[]
@@ -24,7 +24,7 @@ model Organization {
 }
 
 model Permission {
-  id             String           @id
+  id             String           @id @default(cuid())
   action         String
   resource       String
   RolePermission RolePermission[]
@@ -33,14 +33,14 @@ model Permission {
 }
 
 model Plan {
-  id             String         @id
+  id             String         @id @default(cuid())
   organizationId String
   name           String
   priceCents     Int
   maxUsers       Int
   maxTickets     Int
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime       @updatedAt
   deletedAt      DateTime?
   Organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   Subscription   Subscription[]
@@ -49,18 +49,18 @@ model Plan {
 }
 
 model Quota {
-  id             String       @id
+  id             String       @id @default(cuid())
   subscriptionId String
   type           QuotaType
   limitCount     Int
   usedCount      Int          @default(0)
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   Subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 model Role {
-  id             String           @id
+  id             String           @id @default(cuid())
   name           String           @unique
   RolePermission RolePermission[]
   UserRole       UserRole[]
@@ -76,7 +76,7 @@ model RolePermission {
 }
 
 model Session {
-  id           String   @id
+  id           String   @id @default(cuid())
   userId       String
   refreshToken String   @unique
   ipAddress    String?
@@ -89,14 +89,14 @@ model Session {
 }
 
 model Subscription {
-  id             String       @id
+  id             String       @id @default(cuid())
   planId         String
   organizationId String
   startDate      DateTime
   endDate        DateTime?
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
   Quota          Quota[]
   Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -106,11 +106,11 @@ model Subscription {
 }
 
 model Team {
-  id             String       @id
+  id             String       @id @default(cuid())
   name           String
   organizationId String
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
   Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   Ticket         Ticket[]
@@ -120,7 +120,7 @@ model Team {
 }
 
 model Ticket {
-  id                             String       @id
+  id                             String       @id @default(cuid())
   title                          String
   description                    String
   status                         TicketStatus @default(OPEN)
@@ -130,7 +130,7 @@ model Ticket {
   createdById                    String
   assignedToId                   String?
   createdAt                      DateTime     @default(now())
-  updatedAt                      DateTime
+  updatedAt                      DateTime     @updatedAt
   closedAt                       DateTime?
   deletedAt                      DateTime?
   User_Ticket_assignedToIdToUser User?        @relation("Ticket_assignedToIdToUser", fields: [assignedToId], references: [id])
@@ -144,7 +144,7 @@ model Ticket {
 }
 
 model User {
-  id                               String       @id
+  id                               String       @id @default(cuid())
   email                            String
   passwordHash                     String
   encryptedName                    String?
@@ -152,7 +152,7 @@ model User {
   organizationId                   String
   teamId                           String?
   createdAt                        DateTime     @default(now())
-  updatedAt                        DateTime
+  updatedAt                        DateTime     @updatedAt
   deletedAt                        DateTime?
   Session                          Session[]
   Ticket_Ticket_assignedToIdToUser Ticket[]     @relation("Ticket_assignedToIdToUser")

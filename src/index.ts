@@ -1,40 +1,25 @@
-// index.ts
-// Query your database using the Prisma Client
+import { prisma } from "@/lib/prisma.js";
 
-import 'dotenv/config'
-import { ffs } from "./generated/ffs.js";
-import { PrismaClient } from './generated/prisma/client.js';
-import { PrismaPg } from '@prisma/adapter-pg';
+async function truncateAll() {
+  // Get all table names in the public schema
+  const tablenames = await prisma.$queryRaw<
+    Array<{ tablename: string }>
+  >`SELECT tablename FROM pg_tables WHERE schemaname='public'`
 
-const connectionString = process.env.DATABASE_URL;
+  const tables = tablenames
+    .map(({ tablename }) => tablename)
+    .filter((name) => name !== '_prisma_migrations') // keep migrations
+    .map((name) => `"public"."${name}"`)
+    .join(', ')
 
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
-
-// Example query to create a user based on the example schema
-
-async function main() {
-  console.log(ffs);
-  const user = await prisma.user.create({
-    data: {
-      id: '8',
-      email: 'bw2222wwwwwwww44422ob@prisma.io',
-      passwordHash: 'password',
-      updatedAt: new Date(),
-      organizationId: '1',
-    },
-  })
-
-  console.log(user)
+  try {
+    // Truncate all tables and reset identities, cascading FKs
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE;`)
+  } catch (error) {
+    console.log({ error })
+  }
 }
 
-main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+truncateAll()
+  .finally(() => prisma.$disconnect())
 
