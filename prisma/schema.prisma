@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id           String         @id
+  name         String
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime
+  deletedAt    DateTime?
+  Plan         Plan[]
+  Subscription Subscription[]
+  Team         Team[]
+  Ticket       Ticket[]
+  User         User[]
+
+  @@index([isActive])
+}
+
+model Permission {
+  id             String           @id
+  action         String
+  resource       String
+  RolePermission RolePermission[]
+
+  @@unique([action, resource])
+}
+
+model Plan {
+  id             String         @id
+  organizationId String
+  name           String
+  priceCents     Int
+  maxUsers       Int
+  maxTickets     Int
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  deletedAt      DateTime?
+  Organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Subscription   Subscription[]
+
+  @@index([organizationId])
+}
+
+model Quota {
+  id             String       @id
+  subscriptionId String
+  type           QuotaType
+  limitCount     Int
+  usedCount      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  Subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id             String           @id
+  name           String           @unique
+  RolePermission RolePermission[]
+  UserRole       UserRole[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  Permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  Role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Session {
+  id           String   @id
+  userId       String
+  refreshToken String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Subscription {
+  id             String       @id
+  planId         String
+  organizationId String
+  startDate      DateTime
+  endDate        DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  deletedAt      DateTime?
+  Quota          Quota[]
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Plan           Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isActive])
+}
+
+model Team {
+  id             String       @id
+  name           String
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  deletedAt      DateTime?
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Ticket         Ticket[]
+  User           User[]
+
+  @@index([organizationId])
+}
+
+model Ticket {
+  id                             String       @id
+  title                          String
+  description                    String
+  status                         TicketStatus @default(OPEN)
+  priority                       Priority     @default(MEDIUM)
+  organizationId                 String
+  teamId                         String?
+  createdById                    String
+  assignedToId                   String?
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime
+  closedAt                       DateTime?
+  deletedAt                      DateTime?
+  User_Ticket_assignedToIdToUser User?        @relation("Ticket_assignedToIdToUser", fields: [assignedToId], references: [id])
+  User_Ticket_createdByIdToUser  User         @relation("Ticket_createdByIdToUser", fields: [createdById], references: [id])
+  Organization                   Organization @relation(fields: [organizationId], references: [id])
+  Team                           Team?        @relation(fields: [teamId], references: [id])
+
+  @@index([assignedToId])
+  @@index([organizationId, status])
+  @@index([priority, status])
+}
+
+model User {
+  id                               String       @id
+  email                            String
+  passwordHash                     String
+  encryptedName                    String?
+  isActive                         Boolean      @default(true)
+  organizationId                   String
+  teamId                           String?
+  createdAt                        DateTime     @default(now())
+  updatedAt                        DateTime
+  deletedAt                        DateTime?
+  Session                          Session[]
+  Ticket_Ticket_assignedToIdToUser Ticket[]     @relation("Ticket_assignedToIdToUser")
+  Ticket_Ticket_createdByIdToUser  Ticket[]     @relation("Ticket_createdByIdToUser")
+  Organization                     Organization @relation(fields: [organizationId], references: [id])
+  Team                             Team?        @relation(fields: [teamId], references: [id])
+  UserRole                         UserRole[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId, isActive])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  Role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  User   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum QuotaType {
+  USERS
+  TICKETS
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}

@@ -1,0 +1,13 @@
+{
+  "watch": [
+    "dist"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules",
+    "src",
+    "**/*.map"
+  ],
+  "exec": "node dist/index.js",
+  "delay": 200
+}

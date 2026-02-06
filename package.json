@@ -2,11 +2,40 @@
   "name": "secure-ticket-api",
   "version": "1.0.0",
   "description": "A secure RESTful API for managing customer support tickets with JWT authentication, role-based access control (RBAC), and Dockerized deployment.",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:tsx": "tsx watch src/index.ts",
+    "dev:nodemon": "nodemon",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JayChew/secure-ticket-api.git"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JayChew/secure-ticket-api/issues"
+  },
+  "homepage": "https://github.com/JayChew/secure-ticket-api#readme",
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.6",
+    "@types/pg": "^8.16.0",
+    "nodemon": "^3.1.11",
+    "prisma": "^7.3.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/client": "^7.3.0",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "pg": "^8.18.0"
+  }
 }
