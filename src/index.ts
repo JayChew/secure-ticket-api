@@ -1,25 +1,24 @@
 import { prisma } from "@/lib/prisma.js";
+import express from "express";
+import dotenv from "dotenv";
+dotenv.config();
 
-async function truncateAll() {
-  // Get all table names in the public schema
-  const tablenames = await prisma.$queryRaw<
-    Array<{ tablename: string }>
-  >`SELECT tablename FROM pg_tables WHERE schemaname='public'`
+const app = express();
 
-  const tables = tablenames
-    .map(({ tablename }) => tablename)
-    .filter((name) => name !== '_prisma_migrations') // keep migrations
-    .map((name) => `"public"."${name}"`)
-    .join(', ')
+app.use(express.json());
 
-  try {
-    // Truncate all tables and reset identities, cascading FKs
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE;`)
-  } catch (error) {
-    console.log({ error })
-  }
-}
+// Get all users
+app.get("/", async (req, res) => {
+  const userCount = await prisma.user.count();
+  res.json(
+    userCount == 0
+      ? "No users have been added yet."
+      : "Some users have been added to the database."
+  );
+});
 
-truncateAll()
-  .finally(() => prisma.$disconnect())
+const PORT = process.env.PORT || 3000;
 
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});

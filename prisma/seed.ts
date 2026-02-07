@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
-import { prisma } from "../src/lib/prisma.js";
 import type { SeederEnvironment } from "./seeders/types.js";
+import { prisma } from "../src/lib/prisma.js";
 
 import { OrganizationSeeder } from "./seeders/OrganizationSeeder.js";
 import { RoleSeeder } from "./seeders/RoleSeeder.js";
@@ -11,11 +11,7 @@ const {
   values: { environment },
 } = parseArgs({ options: { environment: { type: "string" } } });
 
-if (!environment) {
-  throw new Error("--environment is required");
-}
-
-const env = environment as SeederEnvironment;
+const env: SeederEnvironment = environment as SeederEnvironment;
 
 async function main() {
   const orgResult = await new OrganizationSeeder(prisma, env).run();

@@ -10,9 +10,9 @@ export class OrganizationSeeder extends BaseSeeder<{
   team: Team;
 }> {
   async run() {
-    if (this.env === "production") {
-      throw new Error("Cannot run OrganizationSeeder in production");
-    }
+    // if (this.env === "production") {
+    //   throw new Error("Cannot run OrganizationSeeder in production");
+    // }
 
     const org = await this.prisma.organization.create({
       data: { name: "Default Organization" },

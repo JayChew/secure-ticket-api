@@ -20,9 +20,9 @@ export class UserSeeder extends BaseSeeder<{
   usersEmails: User["email"][];
 }, UserSeederOptions> {
   async run() {
-    if (this.env === "production") {
-      throw new Error("Cannot run UserSeeder in production");
-    }
+    // if (this.env === "production") {
+    //   throw new Error("Cannot run UserSeeder in production");
+    // }
 
     if (!this.context) throw new Error("UserSeeder requires context");
     const { context } = this;

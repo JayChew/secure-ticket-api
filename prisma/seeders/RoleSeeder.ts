@@ -8,16 +8,16 @@ export class RoleSeeder extends BaseSeeder<{
   userRole: Role;
 }> {
   async run() {
-    if (this.env === "production") {
-      throw new Error("Cannot run RoleSeeder in production");
-    }
+    // if (this.env === "production") {
+    //   throw new Error("Cannot run RoleSeeder in production");
+    // }
 
     // 创建角色
     const [adminRole, agentRole, userRole]: [Role, Role, Role] =
       await Promise.all([
-        this.prisma.role.create({ data: { name: "ADMIN" } }),
-        this.prisma.role.create({ data: { name: "AGENT" } }),
-        this.prisma.role.create({ data: { name: "USER" } }),
+        this.prisma.role.upsert({ where: { name: "ADMIN" }, create: { name: "ADMIN" }, update: { name: "ADMIN" } }),
+        this.prisma.role.upsert({ where: { name: "AGENT" }, create: { name: "AGENT" }, update: { name: "AGENT" } }),
+        this.prisma.role.upsert({ where: { name: "USER" }, create: { name: "USER" }, update: { name: "USER" } }),
       ]);
 
     // 创建权限
@@ -33,7 +33,7 @@ export class RoleSeeder extends BaseSeeder<{
     ];
 
     const permissionRecords: Permission[] = await Promise.all(
-      permissionsData.map((p) => this.prisma.permission.create({ data: p })),
+      permissionsData.map((p) => this.prisma.permission.upsert({ where: { action_resource: { action: p.action, resource: p.resource } }, create: p, update: p })),
     );
 
     // 分配权限
@@ -57,8 +57,10 @@ export class RoleSeeder extends BaseSeeder<{
           const perm = permissionRecords.find(
             (pr) => pr.action === p.action && pr.resource === p.resource,
           )!;
-          return this.prisma.rolePermission.create({
-            data: { roleId: role.id, permissionId: perm.id },
+          return this.prisma.rolePermission.upsert({
+            where: { roleId_permissionId: { roleId: role.id, permissionId: perm.id } },
+            create: { roleId: role.id, permissionId: perm.id },
+            update: { roleId: role.id, permissionId: perm.id },
           });
         }),
       );

@@ -17,9 +17,9 @@ interface TicketSeederOptions {
 
 export class TicketSeeder extends BaseSeeder<void, TicketSeederOptions> {
   async run() {
-    if (this.env === "production") {
-      throw new Error("Cannot run TicketSeeder in production");
-    }
+    // if (this.env === "production") {
+    //   throw new Error("Cannot run TicketSeeder in production");
+    // }
 
     if (!this.context) throw new Error("TicketSeeder requires context");
     const { context } = this;
