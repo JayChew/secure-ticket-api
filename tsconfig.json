@@ -29,6 +29,10 @@
     },
     "resolveJsonModule": true,
     "rootDir": "src",
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ],
     // ---------------------
     // Emit
     // ---------------------

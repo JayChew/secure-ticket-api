@@ -25,11 +25,15 @@ model Organization {
 
 model Permission {
   id             String           @id @default(cuid())
-  action         String
+  key            String           @unique
   resource       String
+  action         String
+  scope          String?
+  description    String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   RolePermission RolePermission[]
-
-  @@unique([action, resource])
 }
 
 model Plan {
@@ -172,6 +176,19 @@ model UserRole {
   User   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  action         String
+  entityType     String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, entityType, entityId])
 }
 
 enum Priority {
