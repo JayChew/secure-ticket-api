@@ -1,7 +1,15 @@
-import type { PermissionKey } from '@/docs/permissions.openapi.ts';
+import type { PermissionKey } from "@/docs/permissions.openapi.js";
+import type { UserRoleWithRelations } from "@/modules/auth/auth.types.js";
 
-export interface JwtPayload {
-  sub: string;            // user.id
-  orgId: string;          // organizationId
+export type JwtPayload = {
+  sub: string; // userId
+  orgId: string;
   permissions: PermissionKey[];
-}
+
+  roles?: UserRoleWithRelations[];
+
+  sessionId?: string;
+
+  iat?: number;
+  exp?: number;
+};

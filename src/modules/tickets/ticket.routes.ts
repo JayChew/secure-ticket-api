@@ -1,13 +1,14 @@
-import { Router, Request, Response } from 'express';
-import { authenticate, requireAuth } from '@/middlewares/auth.middleware.js';
-import { requireActiveOrganization, requireActiveSubscription } from '@/middlewares/org.guard.js';
-import { requirePermission } from '@/middlewares/rbac.middleware.js';
-import { canUpdateField } from './ticket.field-policy.js';
-import { TicketService } from './ticket.service.js';
-import { TicketStore } from './ticket.store.js';
-import { auditLog } from '@/lib/audit.js';
-import type { PermissionKey } from '@/docs/permissions.openapi.js';
-import type { AuthUser } from './ticket.policy.js';
+import { Router, Request, Response } from "express";
+import { authenticate, requireAuth } from "@/middlewares/auth.middleware.js";
+import {
+  requireActiveOrganization,
+  requireActiveSubscription,
+} from "@/middlewares/org.guard.js";
+import { requirePermission } from "@/middlewares/rbac.middleware.js";
+import { TicketService } from "./ticket.service.js";
+import { TicketStateMachineService } from "./ticket.state-machine.js";
+import { TicketStore } from "./ticket.store.js";
+import { auditLog } from "@/lib/audit.js";
 
 const router = Router();
 
@@ -15,124 +16,102 @@ const router = Router();
 // Create Ticket
 // -------------------------
 router.post(
-  '/',
+  "/",
   authenticate(),
   requireAuth,
   requireActiveOrganization,
   requireActiveSubscription,
-  requirePermission('ticket:create'),
+  requirePermission("ticket:create"),
   async (req: Request, res: Response) => {
     const user = req.user!;
-    const authUser: AuthUser = {
-      id: user.id,
-      permissions: user.permissions as PermissionKey[],
-      organizationId: user.organizationId,
-    };
-    const { title, description, teamId, priority, assignedToId, status } = req.body;
+    const { title, description, teamId } = req.body;
 
-    const ticket = await TicketService.create(authUser, {
+    const ticket = await TicketService.create(user, {
       title,
       description,
-      organizationId: user.organizationId,
-      teamId: teamId || null,
-      createdById: user.id,
-      priority: priority || 'MEDIUM',
-      assignedToId: assignedToId || null,
-      status: status || 'OPEN',
+      teamId,
     });
 
-    // 更新配额
+    // 更新 quota
     await auditLog({
       organizationId: user.organizationId,
       userId: user.id,
-      action: 'ticket.create',
-      entityType: 'ticket',
+      action: "ticket.create",
+      entityType: "ticket",
       entityId: ticket.id,
       metadata: { teamId },
     });
 
     res.json(ticket);
-  }
+  },
 );
 
 // -------------------------
 // Update Ticket
 // -------------------------
 router.patch(
-  '/:id',
+  "/:id",
   authenticate(),
   requireAuth,
   requireActiveOrganization,
   requireActiveSubscription,
-  requirePermission('ticket:update'),
+  requirePermission("ticket:update"),
   async (req: Request, res: Response) => {
     const user = req.user!;
-    const authUser: AuthUser = {
-      id: user.id,
-      permissions: user.permissions as PermissionKey[],
-      organizationId: user.organizationId,
-    };
     const ticketId = req.params.id as string;
 
     const ticket = await TicketStore.findById(ticketId);
-    if (!ticket) return res.status(404).json({ error: 'TICKET_NOT_FOUND' });
+    if (!ticket) return res.status(404).json({ error: "TICKET_NOT_FOUND" });
 
+    // 字段 & 状态更新
     const updateData: Record<string, any> = {};
-
-    // 字段更新
-    for (const field of ['priority', 'assignedToId'] as const) {
-      if (req.body[field] !== undefined) {
-        if (!canUpdateField(authUser, field)) {
-          return res.status(403).json({ error: `FORBIDDEN_FIELD_${field.toUpperCase()}` });
-        }
-        updateData[field] = req.body[field];
-      }
-    }
-
-    // 状态更新
+    if (req.body.priority) updateData.priority = req.body.priority;
+    if (req.body.assignedToId) updateData.assignedToId = req.body.assignedToId;
     if (req.body.status) {
-      updateData.status = req.body.status;
+      // 调用状态机 service 统一校验 + 更新
+      const updatedTicket = await TicketStateMachineService.transition(
+        user,
+        ticket,
+        req.body.status,
+      );
+      Object.assign(updateData, { status: updatedTicket.status });
     }
 
-    const updatedTicket = await TicketService.update(authUser, ticket, updateData);
+    // 其余字段通过 TicketService.update 校验
+    const updatedTicket = await TicketService.update(user, ticket, updateData);
 
     await auditLog({
       organizationId: user.organizationId,
       userId: user.id,
-      action: 'ticket.update',
-      entityType: 'ticket',
-      entityId: ticket.id,
+      action: "ticket.update",
+      entityType: "ticket",
+      entityId: ticketId,
       metadata: updateData,
     });
 
     res.json(updatedTicket);
-  }
+  },
 );
 
 // -------------------------
 // Get Ticket
 // -------------------------
 router.get(
-  '/:id',
+  "/:id",
   authenticate(),
   requireAuth,
   requireActiveOrganization,
   async (req: Request, res: Response) => {
     const user = req.user!;
-    const authUser: AuthUser = {
-      id: user.id,
-      permissions: user.permissions as PermissionKey[],
-      organizationId: user.organizationId,
-    };
     const ticketId = req.params.id as string;
 
     const ticket = await TicketStore.findById(ticketId);
-    if (!ticket) return res.status(404).json({ error: 'TICKET_NOT_FOUND' });
+    if (!ticket) return res.status(404).json({ error: "TICKET_NOT_FOUND" });
 
-    const result = await TicketService.get(authUser, ticket);
+    await TicketService.get(user, ticket); // RBAC check
 
-    res.json(result);
-  }
+    res.json(ticket);
+  },
 );
 
 export default router;

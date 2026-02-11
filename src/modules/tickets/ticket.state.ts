@@ -1,12 +1,12 @@
-import { TicketStatus } from '@/generated/prisma/client';
+import type { TicketStatus } from "@/generated/prisma/client";
 
-export const StatusTransitions: Record<TicketStatus, TicketStatus[]> = {
-  OPEN: ['IN_PROGRESS', 'CLOSED'],
-  IN_PROGRESS: ['CLOSED'],
+export const TicketStateTransitions: Record<TicketStatus, TicketStatus[]> = {
+  OPEN: ["IN_PROGRESS", "CLOSED"],
+  IN_PROGRESS: ["CLOSED"],
   CLOSED: [],
-  RESOLVED: ['CLOSED'],
+  RESOLVED: ["CLOSED", "OPEN"],
 };
 
-export function canTransition(current: TicketStatus, next: TicketStatus) {
-  return StatusTransitions[current]?.includes(next);
+export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
+  return TicketStateTransitions[from]?.includes(to) ?? false;
 }

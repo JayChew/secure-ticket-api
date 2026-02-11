@@ -1,30 +1,15 @@
-import { HttpError } from '@/errors/http-error.js';
-import { TicketErrorCode } from './ticket.errors.js';
-import { canTransition as isValidTransition } from './ticket.state.js';
-import type { Ticket, TicketStatus, User } from '@/generated/prisma/client';
-import type { PermissionKey } from '@/docs/permissions.openapi.js';
-
-export type TicketAction = 'view' | 'update' | 'close';
-
-export type PermissionRule = {
-  any: PermissionKey;
-  own?: PermissionKey;
-};
-
-const TicketPermissionMatrix: Record<TicketAction, PermissionRule> = {
-  view: { any: 'ticket:view:any', own: 'ticket:view:own' },
-  update: { any: 'ticket:update', own: 'ticket:update' },
-  close: { any: 'ticket:close' },
-};
-
-export type AuthUser = {
-  id: string;
-  permissions: PermissionKey[];
-  organizationId: User["organizationId"];
-};
+import { HttpError } from "@/errors/http-error.js";
+import { TicketErrorCode } from "./ticket.errors.js";
+import { canTransition as isValidTransition } from "./ticket.state.js";
+import type { Ticket, TicketStatus } from "@/generated/prisma/client";
+import type { AuthUser } from "@/modules/auth/auth.types";
+import { TicketPermissionMatrix, TicketAction } from "./ticket.permissions.js";
 
 export class TicketPolicy {
-  constructor(private user: AuthUser, private ticket: Ticket) {}
+  constructor(
+    private user: AuthUser,
+    private ticket: Ticket,
+  ) {}
 
   static assert(user: AuthUser, ticket: Ticket) {
     return new TicketPolicy(user, ticket);
@@ -33,15 +18,18 @@ export class TicketPolicy {
   can(action: TicketAction) {
     const rule = TicketPermissionMatrix[action];
 
+    // any 权限
     if (rule.any && this.user.permissions.includes(rule.any)) return true;
 
+    // own 权限
     if (
       rule.own &&
       this.user.permissions.includes(rule.own) &&
       (this.ticket.createdById === this.user.id ||
         this.ticket.assignedToId === this.user.id)
-    )
+    ) {
       return true;
+    }
 
     throw new HttpError(403, TicketErrorCode.FORBIDDEN);
   }
@@ -52,7 +40,7 @@ export class TicketPolicy {
     }
 
     if (
-      nextStatus === 'CLOSED' &&
+      nextStatus === "CLOSED" &&
       !this.user.permissions.includes(TicketPermissionMatrix.close.any)
     ) {
       throw new HttpError(403, TicketErrorCode.FORBIDDEN);
@@ -61,23 +49,11 @@ export class TicketPolicy {
     return true;
   }
 
-  canUpdateField(field: keyof Pick<Ticket, 'priority' | 'assignedToId'>) {
-    if (field === 'priority') {
-      if (
-        !this.user.permissions.includes(TicketPermissionMatrix.update.any) &&
-        !(TicketPermissionMatrix.update.own &&
-          this.user.permissions.includes(TicketPermissionMatrix.update.own))
-      ) {
-        throw new HttpError(403, `FORBIDDEN_FIELD_${field.toUpperCase()}`);
-      }
-    }
-
-    if (field === 'assignedToId') {
-      if (!this.user.permissions.includes(TicketPermissionMatrix.update.any)) {
-        throw new HttpError(403, `FORBIDDEN_FIELD_${field.toUpperCase()}`);
-      }
-    }
-
+  canUpdateField(field: keyof Pick<Ticket, "priority" | "assignedToId">) {
+    // 委托给 field-policy
+    import("./ticket.field-policy.js").then(({ canUpdateField }) =>
+      canUpdateField(this.user, field),
+    );
     return true;
   }
 }

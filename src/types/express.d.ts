@@ -1,12 +1,12 @@
-import type { PermissionKey } from '@/docs/permissions.openapi.ts';
+import type { AuthUser } from "@/modules/auth/auth.types";
 
 declare global {
   namespace Express {
-    interface User {
-      id: string;
-      permissions: PermissionKey[];
-      organizationId: string;
-    }
+    /**
+     * HTTP 层 User = AuthUser
+     * ❌ 不允许加字段
+     */
+    interface User extends AuthUser {}
 
     interface Request {
       user?: User;
