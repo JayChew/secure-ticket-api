@@ -28,7 +28,24 @@ export const AuthStore = {
    * User
    */
   findUserById: (id: string) =>
-    prisma.user.findUnique({ where: { id } }),
+    prisma.user.findUnique({
+      where: { id },
+      include: {
+        UserRole: {
+          include: {
+            Role: {
+              include: {
+                RolePermission: {
+                  include: {
+                    Permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
 
   findUserByEmail: (organizationId: string, email: string) =>
     prisma.user.findUnique({
@@ -36,6 +53,21 @@ export const AuthStore = {
         organizationId_email: {
           organizationId,
           email,
+        },
+      },
+      include: {
+        UserRole: {
+          include: {
+            Role: {
+              include: {
+                RolePermission: {
+                  include: {
+                    Permission: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     }),

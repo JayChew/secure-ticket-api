@@ -1,5 +1,7 @@
 import type { AuthUser } from "@/modules/auth/auth.types";
 import { TicketPermissionMatrix } from "./ticket.permissions.js";
+import { HttpError } from "@/errors/http-error.js";
+import { TicketErrorCode } from "./ticket.errors.js";
 
 /**
  * 字段级更新权限
@@ -21,13 +23,13 @@ export function canUpdateField(
 
   if (field === "priority") {
     if (!hasUpdateAny && !hasUpdateOwn) {
-      throw new Error(`FORBIDDEN_FIELD_${field.toUpperCase()}`);
+      throw new HttpError(403, TicketErrorCode.FORBIDDEN_FIELD_PRIORITY);
     }
   }
 
   if (field === "assignedToId") {
     if (!hasUpdateAny) {
-      throw new Error(`FORBIDDEN_FIELD_${field.toUpperCase()}`);
+      throw new HttpError(403, TicketErrorCode.FORBIDDEN_FIELD_ASSIGNED_TO_ID);
     }
   }
 

@@ -9,6 +9,8 @@ import { TicketService } from "./ticket.service.js";
 import { TicketStateMachineService } from "./ticket.state-machine.js";
 import { TicketStore } from "./ticket.store.js";
 import { auditLog } from "@/lib/audit.js";
+import { HttpError } from "@/errors/http-error.js";
+import { TicketErrorCode } from "./ticket.errors.js";
 
 const router = Router();
 
@@ -61,7 +63,7 @@ router.patch(
     const ticketId = req.params.id as string;
 
     const ticket = await TicketStore.findById(ticketId);
-    if (!ticket) return res.status(404).json({ error: "TICKET_NOT_FOUND" });
+    if (!ticket) throw new HttpError(404, TicketErrorCode.TICKET_NOT_FOUND);
 
     // 字段 & 状态更新
     const updateData: Record<string, any> = {};
@@ -106,7 +108,7 @@ router.get(
     const ticketId = req.params.id as string;
 
     const ticket = await TicketStore.findById(ticketId);
-    if (!ticket) return res.status(404).json({ error: "TICKET_NOT_FOUND" });
+    if (!ticket) throw new HttpError(404, TicketErrorCode.TICKET_NOT_FOUND);
 
     await TicketService.get(user, ticket); // RBAC check
 

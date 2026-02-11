@@ -3,6 +3,7 @@ import type { AuthUser } from "./auth.types.js";
 import { canUpdateField } from "./auth.field-policy.js";
 import { AuthState } from "./auth.state.js";
 import { can } from "./auth.policy.js";
+import { HttpError } from "@/errors/http-error.js";
 
 /**
  * checkAuthAccess
@@ -24,7 +25,7 @@ export function checkAuthAccess(
   const permission = permissionMap[action];
 
   if (!can(ctx, permission, undefined, targetUser)) {
-    throw new Error(`No permission to ${action}`);
+    throw new HttpError(403, `No permission to ${action}`);
   }
 }
 
