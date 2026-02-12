@@ -24,3 +24,18 @@ export function normalizeRole(
   }
   return role;
 }
+
+export function can(
+  ctx: AuthContext,
+  permission: string,
+  role?: string | UserRoleWithRelations,
+  target?: any,
+): boolean {
+  const rule = ALL_POLICIES.find((p) => p.permission === permission);
+  if (!rule) return false;
+
+  const roleObj = role ? normalizeRole(role, ctx.user.id) : undefined;
+  return rule.allow(ctx, roleObj, target);
+}
+
+export * from "./auth.policy.base.js";

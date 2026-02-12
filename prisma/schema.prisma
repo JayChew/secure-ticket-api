@@ -80,16 +80,24 @@ model RolePermission {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  userId       String
-  refreshToken String   @unique
-  ipAddress    String?
-  userAgent    String?
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
 
-  @@index([userId, expiresAt])
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash String
+
+  revokedAt        DateTime?
+  expiresAt        DateTime
+
+  ipAddress        String?
+  userAgent        String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Subscription {

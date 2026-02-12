@@ -1,27 +1,20 @@
-import { prisma } from '@/lib/prisma.js';
-import type { User, Session } from '@/generated/prisma/client';
+import { prisma } from "@/lib/prisma.js";
+import type { User, Session } from "@/generated/prisma/client";
+import type { SessionCreateInput } from "@/generated/prisma/models/Session";
 
-/**
- * Session
- * 对应 TicketCreateData
- */
-export type SessionCreateData = {
-  userId: string;
-  refreshToken: string;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-  expiresAt: Date;
-};
-
-/**
- * User
- * 对应 TicketUpdateData
- */
 export type UserUpdateData = Partial<{
   passwordHash: string;
   isActive: boolean;
   teamId: string | null;
 }>;
+
+export type SessionCreateData = {
+  userAgent: string | null;
+  ipAddress: string | undefined;
+  refreshTokenHash: string;
+  expiresAt: Date;
+  userId?: string;
+};
 
 export const AuthStore = {
   /**
@@ -79,14 +72,71 @@ export const AuthStore = {
    * Session
    */
   findSessionById: (id: string) =>
-    prisma.session.findUnique({ where: { id }, include: { User: true } }),
+    prisma.session.findUnique({ where: { id }, include: { user: true } }),
 
-  findSessionByRefreshToken: (refreshToken: string) =>
-    prisma.session.findUnique({ where: { refreshToken } }),
+  findActiveSessionById(sessionId: string) {
+    return prisma.session.findFirst({
+      where: {
+        id: sessionId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+  },
 
-  createSession: (data: SessionCreateData) =>
-    prisma.session.create({ data }),
+  findSessionByRefreshToken: (refreshTokenHash: string) =>
+    prisma.session.findFirst({
+      where: { refreshTokenHash },
+      include: { user: true },
+    }),
 
-  revokeSession: (id: string) =>
-    prisma.session.delete({ where: { id } }),
+  createSession: (data: SessionCreateData) => {
+    const sessionData: SessionCreateInput = {
+      user: { connect: { id: data.userId! } },
+      refreshTokenHash: data.refreshTokenHash,
+      expiresAt: data.expiresAt,
+      userAgent: data.userAgent,
+      ipAddress: data.ipAddress,
+      createdAt: new Date(),
+    };
+    return prisma.session.create({ data: sessionData });
+  },
+
+  rotateRefreshToken(
+    sessionId: string,
+    data: {
+      refreshTokenHash: string;
+      expiresAt: Date;
+    },
+  ) {
+    return prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        refreshTokenHash: data.refreshTokenHash,
+        expiresAt: data.expiresAt,
+        revokedAt: null,
+      },
+    });
+  },
+
+  revokeSession(sessionId: string) {
+    return prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  },
+
+  revokeAllSessions(userId: string) {
+    return prisma.session.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  },
 };
