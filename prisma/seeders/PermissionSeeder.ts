@@ -6,6 +6,7 @@ export class PermissionSeeder extends BaseSeeder {
     for (const [key, meta] of Object.entries(PermissionToApiMap)) {
       const [resource, action, scope] = key.split(':');
 
+      console.log("Upserting permission:", key);
       await this.prisma.permission.upsert({
         where: { key },
         update: {

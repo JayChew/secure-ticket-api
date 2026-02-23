@@ -17,11 +17,15 @@ export class OrganizationSeeder extends BaseSeeder<{
     const org = await this.prisma.organization.create({
       data: { name: "Default Organization" },
     });
+    console.log("Org:", org);
 
     const team = await this.prisma.team.create({
       data: { name: "Support Team", organizationId: org.id },
     });
+    console.log("Team:", team);
 
+    console.log("✅ Organization and team created");
+    
     return { org, team };
   }
 }

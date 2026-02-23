@@ -63,20 +63,25 @@ router.post("/login", async (req: Request, res: Response) => {
     if (!userRecord.isActive)
       throw new HttpError(403, AuthErrorCode.USER_INACTIVE);
 
+    console.log("userRecord", userRecord);
+
     const authUser: AuthUser = {
       id: userRecord.id,
       roles: userRecord.UserRole,
       organizationId: userRecord.organizationId,
       permissions: AuthService.flattenPermissions(userRecord.UserRole),
     };
+    console.log("authUser", authUser);
 
     const refreshToken = generateRefreshToken();
+    console.log("refreshToken", refreshToken);
     const session = await AuthService.createSession(authUser, {
       refreshTokenHash: hashToken(refreshToken),
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"] || null,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     });
+    console.log("session", session);
 
     const accessToken = issueAccessToken({
       sub: authUser.id,
@@ -115,9 +120,11 @@ router.post("/login", async (req: Request, res: Response) => {
         },
       });
   } catch (err) {
-    if (err instanceof HttpError)
+    if (err instanceof HttpError) {
       res.status(err.status).json({ error: err.message });
-    else res.status(500).json({ error: "Internal server error" });
+    }else {
+      res.status(500).json({ error: err })
+    };
   }
 });
 

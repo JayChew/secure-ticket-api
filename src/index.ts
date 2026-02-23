@@ -8,10 +8,16 @@ import authRoutes from './modules/auth/auth.routes.js';
 import ticketRoutes from './modules/tickets/ticket.routes.js';
 import { HttpError } from './errors/http-error.js';
 import { auditError } from './audit/audit-error.js';
+import cors from 'cors';
 
 dotenv.config();
 
 const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true, // if you send cookies
+}));
 
 app.use(json());
 app.use(cookieParser());
@@ -62,7 +68,7 @@ app.use(async (err: unknown, req: express.Request, res: express.Response, _next:
 // -------------------------
 // Start Server
 // -------------------------
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

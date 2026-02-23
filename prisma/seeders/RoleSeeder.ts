@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Permission } from "../../src/generated/prisma/client.js";
+import { Role, Permission } from "../../src/generated/prisma/client.js";
 import { PermissionCreateInput } from "../../src/generated/prisma/models.js";
 import { BaseSeeder } from "./BaseSeeder.js";
 
@@ -22,18 +22,18 @@ export class RoleSeeder extends BaseSeeder<{
 
     // 创建权限
     const permissionsData: PermissionCreateInput[] = [
-      { action: "CREATE", resource: "TICKET" },
-      { action: "READ", resource: "TICKET" },
-      { action: "UPDATE", resource: "TICKET" },
-      { action: "DELETE", resource: "TICKET" },
-      { action: "CREATE", resource: "USER" },
-      { action: "READ", resource: "USER" },
-      { action: "UPDATE", resource: "USER" },
-      { action: "DELETE", resource: "USER" },
+      { action: "CREATE", resource: "TICKET", key: "ticket:create", scope: "TICKET", description: "Create ticket", isActive: true },
+      { action: "READ", resource: "TICKET", key: "ticket:read", scope: "TICKET", description: "Read ticket", isActive: true },
+      { action: "UPDATE", resource: "TICKET", key: "ticket:update", scope: "TICKET", description: "Update ticket", isActive: true },
+      { action: "DELETE", resource: "TICKET", key: "ticket:delete", scope: "TICKET", description: "Delete ticket", isActive: true },
+      { action: "CREATE", resource: "USER", key: "user:create", scope: "USER", description: "Create user", isActive: true },
+      { action: "READ", resource: "USER", key: "user:read", scope: "USER", description: "Read user", isActive: true },
+      { action: "UPDATE", resource: "USER", key: "user:update", scope: "USER", description: "Update user", isActive: true },
+      { action: "DELETE", resource: "USER", key: "user:delete", scope: "USER", description: "Delete user", isActive: true },
     ];
 
     const permissionRecords: Permission[] = await Promise.all(
-      permissionsData.map((p) => this.prisma.permission.upsert({ where: { action_resource: { action: p.action, resource: p.resource } }, create: p, update: p })),
+      permissionsData.map((p) => this.prisma.permission.upsert({ where: { key: p.key }, create: p, update: p })),
     );
 
     // 分配权限
