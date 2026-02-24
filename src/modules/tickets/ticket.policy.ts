@@ -6,22 +6,79 @@ import type { AuthUser } from "@/modules/auth/auth.types";
 import { TicketPermissionMatrix, TicketAction } from "./ticket.permissions.js";
 
 export class TicketPolicy {
-  constructor(
-    private user: AuthUser,
-    private ticket: Ticket,
-  ) {}
+  // =========================
+  // Collection-level
+  // =========================
+  static forUser(user: AuthUser) {
+    return new TicketPolicy(user);
+  }
 
+  // =========================
+  // Instance-level
+  // =========================
   static assert(user: AuthUser, ticket: Ticket) {
     return new TicketPolicy(user, ticket);
   }
 
+  constructor(
+    private user: AuthUser,
+    private ticket?: Ticket,
+  ) {}
+
+  // =========================
+  // LIST / COLLECTION POLICY
+  // =========================
+  buildListWhere(input: {
+    organizationId: string;
+    status?: TicketStatus;
+    priority?: any;
+    teamId?: string;
+    assignedTo?: string;
+  }) {
+    const where: any = {
+      organizationId: input.organizationId,
+    };
+
+    // 🔐 基于 permission / role 的可见性
+    // Admin / ticket:any:view → 全组织
+    if (this.user.permissions.includes("ticket:list:any")) {
+      // no extra constraint
+    }
+
+    // ticket:own:view → 自己相关
+    else if (this.user.permissions.includes("ticket:list:own")) {
+      where.OR = [
+        { createdById: this.user.id },
+        { assignedToId: this.user.id },
+      ];
+    }
+
+    // 没有 view 权限
+    else {
+      throw new HttpError(403, TicketErrorCode.FORBIDDEN);
+    }
+
+    // 🔍 Filters
+    if (input.status) where.status = input.status;
+    if (input.priority) where.priority = input.priority;
+    if (input.teamId) where.teamId = input.teamId;
+    if (input.assignedTo) where.assignedToId = input.assignedTo;
+
+    return where;
+  }
+
+  // =========================
+  // INSTANCE POLICY（你原来的）
+  // =========================
   can(action: TicketAction) {
+    if (!this.ticket) {
+      throw new Error("TicketPolicy.can requires ticket");
+    }
+
     const rule = TicketPermissionMatrix[action];
 
-    // any 权限
     if (rule.any && this.user.permissions.includes(rule.any)) return true;
 
-    // own 权限
     if (
       rule.own &&
       this.user.permissions.includes(rule.own) &&
@@ -35,6 +92,10 @@ export class TicketPolicy {
   }
 
   canTransition(nextStatus: TicketStatus) {
+    if (!this.ticket) {
+      throw new Error("TicketPolicy.canTransition requires ticket");
+    }
+
     if (!isValidTransition(this.ticket.status, nextStatus)) {
       throw new HttpError(400, TicketErrorCode.INVALID_STATUS_TRANSITION);
     }
@@ -50,7 +111,6 @@ export class TicketPolicy {
   }
 
   canUpdateField(field: keyof Pick<Ticket, "priority" | "assignedToId">) {
-    // 委托给 field-policy
     import("./ticket.field-policy.js").then(({ canUpdateField }) =>
       canUpdateField(this.user, field),
     );

@@ -3,6 +3,22 @@ type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 export const PermissionToApiMap = {
   // Ticket
+  'ticket:list:any': {
+    method: 'GET',
+    path: '/tickets',
+    resource: 'ticket',
+    action: 'list',
+    scope: 'any',
+    description: 'List any tickets in organization',
+  },
+  'ticket:list:own': {
+    method: 'GET',
+    path: '/tickets',
+    resource: 'ticket',
+    action: 'list',
+    scope: 'own',
+    description: 'List own tickets',
+  },
   'ticket:view:any': {
     method: 'GET',
     path: '/tickets/:id',

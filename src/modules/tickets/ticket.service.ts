@@ -5,8 +5,18 @@ import type {
 } from "@/generated/prisma/models/Ticket.js";
 import type { TicketCreateData, TicketUpdateData } from "./ticket.store.js";
 import { TicketPolicy } from "./ticket.policy.js";
-import type { Ticket } from "@/generated/prisma/client";
+import type { Ticket, TicketStatus } from "@/generated/prisma/client";
 import type { AuthUser } from "@/modules/auth/auth.types";
+
+type TicketListParams = {
+  status?: string;
+  priority?: string;
+  teamId?: string;
+  assignedTo?: string;
+  page: number;
+  pageSize: number;
+};
+
 
 export const TicketService = {
   // -------------------------
@@ -79,5 +89,44 @@ export const TicketService = {
 
     TicketPolicy.assert(user, ticket).can("view");
     return ticket;
+  },
+
+  // -------------------------
+  // List Tickets
+  // -------------------------
+  async list(user: AuthUser, params: TicketListParams) {
+    const policy = TicketPolicy.forUser(user);
+
+    // 1️⃣ 构建 where（RBAC + filters）
+    const where = policy.buildListWhere({
+      organizationId: user.organizationId,
+      status: params.status as TicketStatus,
+      priority: params.priority,
+      teamId: params.teamId,
+      assignedTo: params.assignedTo,
+    });
+
+    // 2️⃣ 排序（可固定或来自 query）
+    const orderBy = { createdAt: "desc" as const };
+
+    // 3️⃣ 分页
+    const skip = (params.page - 1) * params.pageSize;
+    const take = params.pageSize;
+
+    // 4️⃣ 查询
+    const [items, total] = await Promise.all([
+      TicketStore.list(where, { skip, take, orderBy }),
+      TicketStore.count(where),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page: params.page,
+        pageSize: params.pageSize,
+        total,
+        totalPages: Math.ceil(total / params.pageSize),
+      },
+    };
   },
 };

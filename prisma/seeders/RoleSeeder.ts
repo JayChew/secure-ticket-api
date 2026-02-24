@@ -22,14 +22,19 @@ export class RoleSeeder extends BaseSeeder<{
 
     // 创建权限
     const permissionsData: PermissionCreateInput[] = [
-      { action: "CREATE", resource: "TICKET", key: "ticket:create", scope: "TICKET", description: "Create ticket", isActive: true },
-      { action: "READ", resource: "TICKET", key: "ticket:read", scope: "TICKET", description: "Read ticket", isActive: true },
-      { action: "UPDATE", resource: "TICKET", key: "ticket:update", scope: "TICKET", description: "Update ticket", isActive: true },
-      { action: "DELETE", resource: "TICKET", key: "ticket:delete", scope: "TICKET", description: "Delete ticket", isActive: true },
-      { action: "CREATE", resource: "USER", key: "user:create", scope: "USER", description: "Create user", isActive: true },
-      { action: "READ", resource: "USER", key: "user:read", scope: "USER", description: "Read user", isActive: true },
-      { action: "UPDATE", resource: "USER", key: "user:update", scope: "USER", description: "Update user", isActive: true },
-      { action: "DELETE", resource: "USER", key: "user:delete", scope: "USER", description: "Delete user", isActive: true },
+      // ===== Ticket =====
+      { key: "ticket:list:any", action: "LIST", resource: "TICKET", scope: "ANY", description: "List any tickets", isActive: true },
+      { key: "ticket:list:own", action: "LIST", resource: "TICKET", scope: "OWN", description: "List own tickets", isActive: true },
+
+      { key: "ticket:view:any", action: "VIEW", resource: "TICKET", scope: "ANY", description: "View any ticket", isActive: true },
+      { key: "ticket:view:own", action: "VIEW", resource: "TICKET", scope: "OWN", description: "View own ticket", isActive: true },
+
+      { key: "ticket:create", action: "CREATE", resource: "TICKET", scope: "ANY", description: "Create ticket", isActive: true },
+
+      { key: "ticket:update:any", action: "UPDATE", resource: "TICKET", scope: "ANY", description: "Update any ticket", isActive: true },
+      { key: "ticket:update:own", action: "UPDATE", resource: "TICKET", scope: "OWN", description: "Update own ticket", isActive: true },
+
+      { key: "ticket:close", action: "CLOSE", resource: "TICKET", scope: "ANY", description: "Close ticket", isActive: true },
     ];
 
     const permissionRecords: Permission[] = await Promise.all(
@@ -37,30 +42,52 @@ export class RoleSeeder extends BaseSeeder<{
     );
 
     // 分配权限
-    const rolePermissionsMap = {
-      ADMIN: permissionsData,
-      AGENT: permissionsData.filter((p) => p.resource === "TICKET"),
-      USER: permissionsData.filter(
-        (p) => p.resource === "TICKET" && p.action === "READ",
-      ),
-    };
+    const rolePermissionsMap: Record<"ADMIN" | "AGENT" | "USER", string[]> = {
+      ADMIN: [
+        "ticket:list:any",
+        "ticket:view:any",
+        "ticket:create",
+        "ticket:update:any",
+        "ticket:close",
+      ],
 
-    for (const [roleName, perms] of Object.entries(rolePermissionsMap)) {
+      AGENT: [
+        "ticket:list:own",
+        "ticket:view:own",
+        "ticket:update:own",
+      ],
+
+      USER: [
+        "ticket:list:own",
+        "ticket:view:own",
+        "ticket:create",
+      ],
+    };
+    
+
+    for (const [roleName, permKeys] of Object.entries(rolePermissionsMap)) {
       const role =
         roleName === "ADMIN"
           ? adminRole
           : roleName === "AGENT"
             ? agentRole
             : userRole;
+
       await Promise.all(
-        perms.map((p) => {
-          const perm = permissionRecords.find(
-            (pr) => pr.action === p.action && pr.resource === p.resource,
-          )!;
+        permKeys.map((key) => {
+          const perm = permissionRecords.find((p) => p.key === key)!;
           return this.prisma.rolePermission.upsert({
-            where: { roleId_permissionId: { roleId: role.id, permissionId: perm.id } },
-            create: { roleId: role.id, permissionId: perm.id },
-            update: { roleId: role.id, permissionId: perm.id },
+            where: {
+              roleId_permissionId: {
+                roleId: role.id,
+                permissionId: perm.id,
+              },
+            },
+            create: {
+              roleId: role.id,
+              permissionId: perm.id,
+            },
+            update: {},
           });
         }),
       );

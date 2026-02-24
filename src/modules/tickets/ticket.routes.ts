@@ -96,6 +96,32 @@ router.patch(
 );
 
 // -------------------------
+// List Tickets
+// -------------------------
+router.get(
+  "/",
+  authenticate(),
+  requireAuth,
+  requireActiveOrganization,
+  requirePermission(["ticket:list:any", "ticket:list:own"]),
+  async (req: Request, res: Response) => {
+    const user = req.user!;
+
+    const result = await TicketService.list(user, {
+      status: req.query.status as any,
+      priority: req.query.priority as any,
+      teamId: req.query.teamId as string | undefined,
+      assignedTo:
+        req.query.assignedTo === "me" ? user.id : undefined,
+      page: Number(req.query.page ?? 1),
+      pageSize: Number(req.query.pageSize ?? 20),
+    });
+
+    res.json(result);
+  },
+);
+
+// -------------------------
 // Get Ticket
 // -------------------------
 router.get(
