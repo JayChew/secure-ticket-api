@@ -5,7 +5,6 @@ import { requireActiveOrganization } from "@/middlewares/org.guard.js";
 import { requirePermission } from "@/middlewares/rbac.middleware.js";
 import { generateRefreshToken, hashToken } from "./auth.tokens.js";
 import { AuthService } from "./auth.service.js";
-import { AuthStore } from "./auth.store.js";
 import { auditLog } from "@/lib/audit.js";
 import type { AuthUser } from "./auth.types.js";
 import { HttpError } from "@/errors/http-error.js";
@@ -90,6 +89,7 @@ router.post("/login", async (req: Request, res: Response) => {
       permissions: authUser.permissions,
       sessionId: session.id,
     });
+    console.log("accessToken", accessToken);
 
     // 审计日志
     await auditLog({

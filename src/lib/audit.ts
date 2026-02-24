@@ -9,7 +9,12 @@ export async function auditLog(input: {
   entityId: string;
   metadata?: Prisma.InputJsonValue;
 }) {
-  return prisma.auditLog.create({
-    data: input,
-  });
+  try {
+    return await prisma.auditLog.create({
+      data: input,
+    });
+  } catch (error) {
+    console.error('Failed to log audit:', error);
+    throw new Error('Failed to log audit', { cause: error });
+  }
 }
