@@ -40,29 +40,21 @@ router.post("/login", async (req: Request, res: Response) => {
     const { email, password } = req.body;
     const organizationId =
       (req.headers["x-organization-id"] as string) || req.body.organizationId;
+
     if (!organizationId)
       throw new HttpError(400, AuthErrorCode.ORGANIZATION_ID_REQUIRED);
     if (!email || !password)
       throw new HttpError(400, AuthErrorCode.INVALID_CREDENTIALS);
 
-    const userRecord = await AuthService.getUser(
-      undefined,
-      email,
-      organizationId,
-    );
+    const userRecord = await AuthService.getUser(undefined, email, organizationId);
     if (!userRecord)
       throw new HttpError(401, AuthErrorCode.INVALID_CREDENTIALS);
 
-    const passwordValid = await bcrypt.compare(
-      password,
-      userRecord.passwordHash,
-    );
+    const passwordValid = await bcrypt.compare(password, userRecord.passwordHash);
     if (!passwordValid)
       throw new HttpError(401, AuthErrorCode.INVALID_CREDENTIALS);
     if (!userRecord.isActive)
       throw new HttpError(403, AuthErrorCode.USER_INACTIVE);
-
-    console.log("userRecord", userRecord);
 
     const authUser: AuthUser = {
       id: userRecord.id,
@@ -70,18 +62,17 @@ router.post("/login", async (req: Request, res: Response) => {
       organizationId: userRecord.organizationId,
       permissions: AuthService.flattenPermissions(userRecord.UserRole),
     };
-    console.log("authUser", authUser);
 
+    // 生成 refreshToken
     const refreshToken = generateRefreshToken();
-    console.log("refreshToken", refreshToken);
     const session = await AuthService.createSession(authUser, {
       refreshTokenHash: hashToken(refreshToken),
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"] || null,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天
     });
-    console.log("session", session);
 
+    // 生成 accessToken
     const accessToken = issueAccessToken({
       sub: authUser.id,
       orgId: authUser.organizationId,
@@ -89,7 +80,6 @@ router.post("/login", async (req: Request, res: Response) => {
       permissions: authUser.permissions,
       sessionId: session.id,
     });
-    console.log("accessToken", accessToken);
 
     // 审计日志
     await auditLog({
@@ -101,30 +91,43 @@ router.post("/login", async (req: Request, res: Response) => {
       metadata: { ip: req.ip, userAgent: req.headers["user-agent"] },
     });
 
+    // ---------------------------
+    // 设置 HttpOnly cookie
+    // ---------------------------
     res
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
-      .json({
-        sessionId: session.id,
-        accessToken,
+    .cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000, // 15分钟
+      path: "/", // 所有 API 可用
+    })
+    .cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+      path: "/auth/refresh", // 仅 refresh endpoint 使用
+    })
+    .json({
+      user: {
+        id: authUser.id,
+        email: userRecord.email,
+        roles: authUser.roles,
+        organizationId: authUser.organizationId,
+        permissions: authUser.permissions,
+      },
+      session: {
+        id: session.id,
         expiresAt: session.expiresAt,
-        user: {
-          id: authUser.id,
-          email: userRecord.email,
-          roles: authUser.roles,
-          organizationId: authUser.organizationId,
-        },
-      });
+      },
+    });
   } catch (err) {
     if (err instanceof HttpError) {
       res.status(err.status).json({ error: err.message });
-    }else {
-      res.status(500).json({ error: err })
-    };
+    } else {
+      res.status(500).json({ error: err });
+    }
   }
 });
 
