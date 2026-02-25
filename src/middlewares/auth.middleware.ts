@@ -7,7 +7,7 @@ import { AuthErrorCode } from '@/modules/auth/auth.errors.js';
 
 export function authenticate() {
   return (req: Request, res: Response, next: NextFunction) => {
-    const token = req.cookies?.accessToken;
+    const token = req.cookies?.accessToken || req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
       return res.status(401).json({ error: AuthErrorCode.UNAUTHORIZED });
