@@ -1,6 +1,7 @@
 import { redis } from '@/lib/redis.js';
 import { prisma } from '@/lib/prisma.js';
 import type { Request, Response, NextFunction } from 'express';
+import { OrgErrorCode } from '@/modules/org/org.errors.js';
 
 export async function requireActiveOrganization(
   req: Request,
@@ -8,7 +9,7 @@ export async function requireActiveOrganization(
   next: NextFunction,
 ) {
   const orgId = req.user?.organizationId;
-  if (!orgId) return res.status(401).json({ error: 'UNAUTHORIZED' });
+  if (!orgId) return res.status(401).json({ error: OrgErrorCode.UNAUTHORIZED });
 
   const cacheKey = `org:${orgId}:isActive`;
   let isActive = await redis.get(cacheKey);
@@ -23,7 +24,7 @@ export async function requireActiveOrganization(
   }
 
   if (isActive !== '1') {
-    return res.status(403).json({ error: 'ORG_DISABLED' });
+    return res.status(403).json({ error: OrgErrorCode.ORG_INACTIVE });
   }
 
   next();
@@ -51,7 +52,7 @@ export async function requireActiveSubscription(
 
   if (!sub) {
     return res.status(402).json({
-      error: 'SUBSCRIPTION_REQUIRED',
+      error: OrgErrorCode.SUBSCRIPTION_REQUIRED,
     });
   }
 
