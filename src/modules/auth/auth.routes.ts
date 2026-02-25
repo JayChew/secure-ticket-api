@@ -10,36 +10,85 @@ import type { AuthUser } from "./auth.types.js";
 import { HttpError } from "@/errors/http-error.js";
 import { AuthErrorCode } from "./auth.errors.js";
 import { issueAccessToken } from "@/lib/jwt.js";
+import type { CookieOptions } from "express";
 
 const router = Router();
+
+const isProd = process.env.NODE_ENV === "production";
+
+/**
+ * AccessToken Cookie 配置
+ */
+export const accessTokenCookieOptions: CookieOptions = {
+  httpOnly: true,
+  sameSite: 'none',
+  secure: false,
+  maxAge: 15 * 60 * 1000,            // 15 分钟
+  path: '/',
+};
+
+/**
+ * RefreshToken Cookie 配置
+ */
+export const refreshTokenCookieOptions: CookieOptions = {
+  httpOnly: true,
+  sameSite: 'none',
+  secure: false,
+  maxAge: 7 * 24 * 60 * 60 * 1000,    // 7 天
+  path: '/',
+};
 
 // -------------------------
 // Refresh
 // -------------------------
 router.post("/refresh", async (req: Request, res: Response) => {
   try {
-    const { sessionId, refreshToken } = req.body;
-    if (!sessionId || !refreshToken) {
-      throw new HttpError(400, AuthErrorCode.INVALID_REFRESH_REQUEST);
+    const clientType = (req.headers["x-client-type"] as string) || "web";
+    let refreshToken: string | undefined;
+
+    if (clientType === "web") {
+      refreshToken = req.cookies?.refreshToken;
+    } else {
+      const authHeader = req.headers.authorization;
+      refreshToken = authHeader?.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "")
+        : req.body.refreshToken;
     }
 
-    const result = await AuthService.refresh({ sessionId, refreshToken });
-    res.json(result);
+    if (!refreshToken) return res.status(401).json({ error: "Missing refreshToken" });
+
+    const { accessToken, refreshToken: newRefreshToken, session, user } =
+      await AuthService.refresh({ refreshToken });
+
+    if (clientType === "web") {
+      // res
+      //   .cookie("accessToken", encodeURIComponent(accessToken), accessTokenCookieOptions)
+      //   .cookie("refreshToken", newRefreshToken, refreshTokenCookieOptions)
+      //   .json({ user, session });
+      res.cookie("accessToken", encodeURIComponent(accessToken), accessTokenCookieOptions)
+      res.cookie("refreshToken", newRefreshToken, refreshTokenCookieOptions)
+      res.json({ user, session });
+    } else {
+      res.json({ user, session, tokens: { accessToken, refreshToken: newRefreshToken } });
+    }
   } catch (err) {
-    if (err instanceof HttpError)
+    if (err instanceof HttpError) {
       res.status(err.status).json({ error: err.message });
-    else res.status(500).json({ error: "Internal server error" });
+    } else {
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 });
 
 // -------------------------
-// Login
+// Login (Web + Mobile)
 // -------------------------
 router.post("/login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const organizationId =
       (req.headers["x-organization-id"] as string) || req.body.organizationId;
+    const clientType = (req.headers["x-client-type"] as string) || "web"; // 默认 web
 
     if (!organizationId)
       throw new HttpError(400, AuthErrorCode.ORGANIZATION_ID_REQUIRED);
@@ -92,36 +141,45 @@ router.post("/login", async (req: Request, res: Response) => {
     });
 
     // ---------------------------
-    // 设置 HttpOnly cookie
+    // 根据 clientType 处理返回
     // ---------------------------
-    res
-    .cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "strict",
-      maxAge: 15 * 60 * 1000, // 15分钟
-      path: "/", // 所有 API 可用
-    })
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
-      path: "/auth/refresh", // 仅 refresh endpoint 使用
-    })
-    .json({
-      user: {
-        id: authUser.id,
-        email: userRecord.email,
-        roles: authUser.roles,
-        organizationId: authUser.organizationId,
-        permissions: authUser.permissions,
-      },
-      session: {
-        id: session.id,
-        expiresAt: session.expiresAt,
-      },
-    });
+    if (clientType === "web") {
+      // Web 浏览器使用 HttpOnly Cookie
+      res.cookie("accessToken", encodeURIComponent(accessToken), accessTokenCookieOptions)
+      res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
+      res.json({
+          user: {
+            id: authUser.id,
+            email: userRecord.email,
+            roles: authUser.roles,
+            organizationId: authUser.organizationId,
+            permissions: authUser.permissions,
+          },
+          session: {
+            id: session.id,
+            expiresAt: session.expiresAt,
+          },
+        });
+    } else {
+      // Mobile App 直接返回 token，由 App 存储
+      res.json({
+        user: {
+          id: authUser.id,
+          email: userRecord.email,
+          roles: authUser.roles,
+          organizationId: authUser.organizationId,
+          permissions: authUser.permissions,
+        },
+        session: {
+          id: session.id,
+          expiresAt: session.expiresAt,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
+      });
+    }
   } catch (err) {
     if (err instanceof HttpError) {
       res.status(err.status).json({ error: err.message });

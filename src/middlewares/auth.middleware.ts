@@ -5,29 +5,32 @@ import type { AuthUser } from '@/modules/auth/auth.types.js';
 import { AuthErrorCode } from '@/modules/auth/auth.errors.js';
 
 
+// -------------------------
+// Authenticate Middleware
+// -------------------------
 export function authenticate() {
   return (req: Request, res: Response, next: NextFunction) => {
-    const token = req.cookies?.accessToken || req.headers.authorization?.replace('Bearer ', '');
+    const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.accessToken;
 
-    if (!token) {
-      return res.status(401).json({ error: AuthErrorCode.UNAUTHORIZED });
-    }
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.replace("Bearer ", "")
+      : cookieToken;
+
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const payload = verifyAccessToken(token) as JwtPayload;
-
-      const user: AuthUser = {
+      const payload = verifyAccessToken(token);
+      req.user = {
         id: payload.sub,
         organizationId: payload.orgId,
         roles: payload.roles ?? [],
         permissions: payload.permissions ?? [],
         sessionId: payload.sessionId,
       };
-
-      req.user = user;
       next();
-    } catch (err) {
-      return res.status(401).json({ error: AuthErrorCode.INVALID_OR_EXPIRED_TOKEN });
+    } catch {
+      return res.status(401).json({ error: "Invalid or expired token" });
     }
   };
 }

@@ -35,6 +35,21 @@ export class RoleSeeder extends BaseSeeder<{
       { key: "ticket:update:own", action: "UPDATE", resource: "TICKET", scope: "OWN", description: "Update own ticket", isActive: true },
 
       { key: "ticket:close", action: "CLOSE", resource: "TICKET", scope: "ANY", description: "Close ticket", isActive: true },
+
+      // ===== User =====
+      { key: "user:list:any", action: "LIST", resource: "USER", scope: "ANY", description: "List any users", isActive: true },
+      { key: "user:list:own", action: "LIST", resource: "USER", scope: "OWN", description: "List own users", isActive: true },
+
+      { key: "user:view:any", action: "VIEW", resource: "USER", scope: "ANY", description: "View any user", isActive: true },
+      { key: "user:view:own", action: "VIEW", resource: "USER", scope: "OWN", description: "View own user", isActive: true },
+
+      { key: "user:create", action: "CREATE", resource: "USER", scope: "ANY", description: "Create user", isActive: true },
+
+      { key: "user:update:any", action: "UPDATE", resource: "USER", scope: "ANY", description: "Update any user", isActive: true },
+      { key: "user:update:own", action: "UPDATE", resource: "USER", scope: "OWN", description: "Update own user", isActive: true },
+
+      { key: "user:delete:any", action: "DELETE", resource: "USER", scope: "ANY", description: "Delete any user", isActive: true },
+      { key: "user:delete:own", action: "DELETE", resource: "USER", scope: "OWN", description: "Delete own user", isActive: true },
     ];
 
     const permissionRecords: Permission[] = await Promise.all(
@@ -49,6 +64,12 @@ export class RoleSeeder extends BaseSeeder<{
         "ticket:create",
         "ticket:update:any",
         "ticket:close",
+
+        "user:list:any",
+        "user:view:any",
+        "user:create",
+        "user:update:any",
+        "user:delete:any",
       ],
 
       AGENT: [

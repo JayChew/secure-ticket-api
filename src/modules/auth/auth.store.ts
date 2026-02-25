@@ -84,7 +84,7 @@ export const AuthStore = {
     });
   },
 
-  findSessionByRefreshToken: (refreshTokenHash: string) =>
+  findSessionByRefreshTokenHash: (refreshTokenHash: string) =>
     prisma.session.findFirst({
       where: { refreshTokenHash },
       include: { user: true },

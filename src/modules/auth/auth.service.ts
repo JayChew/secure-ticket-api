@@ -39,39 +39,44 @@ export const AuthService = {
   // -----------------------
   // Refresh token rotation
   // -----------------------
-  async refresh(params: { sessionId: string; refreshToken: string }) {
-    const { sessionId, refreshToken } = params;
+  async refresh(params: { refreshToken: string }) {
+    const { refreshToken } = params;
 
-    // 1️⃣ 找 session
-    const session = await AuthStore.findSessionById(sessionId);
-    if (!session) throw new HttpError(401, AuthErrorCode.SESSION_NOT_FOUND);
-    if (session.revokedAt)
-      throw new HttpError(401, AuthErrorCode.SESSION_REVOKED);
-    if (session.expiresAt < new Date())
-      throw new HttpError(401, AuthErrorCode.SESSION_EXPIRED);
-
-    // 2️⃣ 校验 refresh token
-    const incomingHash = hashToken(refreshToken);
-    if (incomingHash !== session.refreshTokenHash) {
-      await AuthStore.revokeAllSessions(session.userId);
-      throw new HttpError(401, AuthErrorCode.INVALID_REFRESH_TOKEN);
+    if (!refreshToken) {
+      throw new HttpError(401, AuthErrorCode.INVALID_REFRESH_REQUEST);
     }
 
-    // 3️⃣ token rotation
+    // ---------------------------
+    // 1️⃣ 找 session，通过 refreshTokenHash
+    // ---------------------------
+    const incomingHash = hashToken(refreshToken);
+console.log("incomingHash ################## ", incomingHash);
+    const session = await AuthStore.findSessionByRefreshTokenHash(incomingHash);
+    if (!session) throw new HttpError(401, AuthErrorCode.SESSION_NOT_FOUND);
+    if (session.revokedAt) throw new HttpError(401, AuthErrorCode.SESSION_REVOKED);
+    if (session.expiresAt < new Date()) throw new HttpError(401, AuthErrorCode.SESSION_EXPIRED);
+
+    // ---------------------------
+    // 2️⃣ token rotation
+    // ---------------------------
     const newRefreshToken = generateRefreshToken();
     const newRefreshTokenHash = hashToken(newRefreshToken);
-    const newExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+    const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7天
 
     await AuthStore.rotateRefreshToken(session.id, {
       refreshTokenHash: newRefreshTokenHash,
       expiresAt: newExpiresAt,
     });
 
-    // 4️⃣ load user
+    // ---------------------------
+    // 3️⃣ load user
+    // ---------------------------
     const userRecord = await this.getUser(session.userId);
     if (!userRecord) throw new HttpError(401, AuthErrorCode.USER_NOT_FOUND);
 
-    // 5️⃣ 构建 AuthUser
+    // ---------------------------
+    // 4️⃣ 构建 AuthUser
+    // ---------------------------
     const authUser: AuthUser = {
       id: userRecord.id,
       organizationId: userRecord.organizationId,
@@ -79,7 +84,9 @@ export const AuthService = {
       permissions: this.flattenPermissions(userRecord.UserRole),
     };
 
-    // 6️⃣ issue new access token
+    // ---------------------------
+    // 5️⃣ issue new access token
+    // ---------------------------
     const accessToken = issueAccessToken({
       sub: authUser.id,
       orgId: authUser.organizationId,
@@ -88,11 +95,17 @@ export const AuthService = {
       sessionId: session.id,
     });
 
-    // 7️⃣ return
+    // ---------------------------
+    // 6️⃣ return
+    // ---------------------------
     return {
       accessToken,
       refreshToken: newRefreshToken,
       expiresAt: newExpiresAt,
+      session: {
+        id: session.id,
+        expiresAt: newExpiresAt,
+      },
       user: {
         id: authUser.id,
         organizationId: authUser.organizationId,
@@ -100,7 +113,7 @@ export const AuthService = {
       },
     };
   },
-
+  
   // -----------------------
   // Create session
   // -----------------------
