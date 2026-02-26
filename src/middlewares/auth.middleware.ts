@@ -1,7 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '@/lib/jwt.js';
-import type { JwtPayload } from '@/lib/jwt.types.js';
-import type { AuthUser } from '@/modules/auth/auth.types.js';
 import { AuthErrorCode } from '@/modules/auth/auth.errors.js';
 
 
@@ -24,9 +22,7 @@ export function authenticate() {
       req.user = {
         id: payload.sub,
         organizationId: payload.orgId,
-        roles: payload.roles ?? [],
         permissions: payload.permissions ?? [],
-        sessionId: payload.sessionId,
       };
       next();
     } catch {

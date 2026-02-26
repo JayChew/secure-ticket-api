@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma.js";
-import type { User, Session } from "@/generated/prisma/client";
 import type { SessionCreateInput } from "@/generated/prisma/models/Session";
 
 export type UserUpdateData = Partial<{

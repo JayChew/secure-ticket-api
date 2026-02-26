@@ -9,7 +9,6 @@ import { auditLog } from "@/lib/audit.js";
 import type { AuthUser } from "./auth.types.js";
 import { HttpError } from "@/errors/http-error.js";
 import { AuthErrorCode } from "./auth.errors.js";
-import { issueAccessToken } from "@/lib/jwt.js";
 import type { CookieOptions } from "express";
 
 const router = Router();
@@ -20,10 +19,10 @@ const isProd = process.env.NODE_ENV === "production";
  * AccessToken Cookie 配置
  */
 export const accessTokenCookieOptions: CookieOptions = {
-  httpOnly: true,
-  sameSite: 'none',
-  secure: false,
-  maxAge: 15 * 60 * 1000,            // 15 分钟
+  httpOnly: true,                 // 始终 true，安全
+  sameSite: isProd ? 'none' : 'lax', // 本地开发用 'lax'，生产跨域用 'none'
+  secure: isProd,                 // 本地开发 false，生产 true
+  maxAge: 15 * 60 * 1000,         // 15 分钟
   path: '/',
 };
 
@@ -32,10 +31,10 @@ export const accessTokenCookieOptions: CookieOptions = {
  */
 export const refreshTokenCookieOptions: CookieOptions = {
   httpOnly: true,
-  sameSite: 'none',
-  secure: false,
-  maxAge: 7 * 24 * 60 * 60 * 1000,    // 7 天
-  path: '/',
+  sameSite: isProd ? 'none' : 'lax',
+  secure: isProd,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
+  path: '/auth/refresh',
 };
 
 // -------------------------
@@ -107,28 +106,20 @@ router.post("/login", async (req: Request, res: Response) => {
 
     const authUser: AuthUser = {
       id: userRecord.id,
-      roles: userRecord.UserRole,
       organizationId: userRecord.organizationId,
       permissions: AuthService.flattenPermissions(userRecord.UserRole),
+      roles: userRecord.UserRole,
     };
 
     // 生成 refreshToken
     const refreshToken = generateRefreshToken();
-    const session = await AuthService.createSession(authUser, {
+    const { accessToken, session } = await AuthService.login(authUser, {
       refreshTokenHash: hashToken(refreshToken),
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"] || null,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天
-    });
-
-    // 生成 accessToken
-    const accessToken = issueAccessToken({
-      sub: authUser.id,
-      orgId: authUser.organizationId,
-      roles: authUser.roles,
-      permissions: authUser.permissions,
-      sessionId: session.id,
-    });
+      userId: authUser.id,
+    })
 
     // 审计日志
     await auditLog({
@@ -145,15 +136,15 @@ router.post("/login", async (req: Request, res: Response) => {
     // ---------------------------
     if (clientType === "web") {
       // Web 浏览器使用 HttpOnly Cookie
-      res.cookie("accessToken", encodeURIComponent(accessToken), accessTokenCookieOptions)
       res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
+      res.cookie("accessToken", encodeURIComponent(accessToken), accessTokenCookieOptions)
       res.json({
           user: {
             id: authUser.id,
             email: userRecord.email,
-            roles: authUser.roles,
             organizationId: authUser.organizationId,
             permissions: authUser.permissions,
+            roles: authUser.roles,
           },
           session: {
             id: session.id,
@@ -166,9 +157,9 @@ router.post("/login", async (req: Request, res: Response) => {
         user: {
           id: authUser.id,
           email: userRecord.email,
-          roles: authUser.roles,
           organizationId: authUser.organizationId,
           permissions: authUser.permissions,
+          roles: authUser.roles,
         },
         session: {
           id: session.id,

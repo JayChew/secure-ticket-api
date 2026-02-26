@@ -25,9 +25,7 @@ export const AuthService = {
     const accessToken = issueAccessToken({
       sub: user.id,
       orgId: user.organizationId,
-      roles: user.roles,
       permissions: user.permissions,
-      sessionId: session.id,
     });
 
     return {
@@ -50,7 +48,6 @@ export const AuthService = {
     // 1️⃣ 找 session，通过 refreshTokenHash
     // ---------------------------
     const incomingHash = hashToken(refreshToken);
-console.log("incomingHash ################## ", incomingHash);
     const session = await AuthStore.findSessionByRefreshTokenHash(incomingHash);
     if (!session) throw new HttpError(401, AuthErrorCode.SESSION_NOT_FOUND);
     if (session.revokedAt) throw new HttpError(401, AuthErrorCode.SESSION_REVOKED);
@@ -90,9 +87,7 @@ console.log("incomingHash ################## ", incomingHash);
     const accessToken = issueAccessToken({
       sub: authUser.id,
       orgId: authUser.organizationId,
-      roles: authUser.roles,
       permissions: authUser.permissions,
-      sessionId: session.id,
     });
 
     // ---------------------------
@@ -109,7 +104,7 @@ console.log("incomingHash ################## ", incomingHash);
       user: {
         id: authUser.id,
         organizationId: authUser.organizationId,
-        roles: authUser.roles,
+        permissions: authUser.permissions,
       },
     };
   },
